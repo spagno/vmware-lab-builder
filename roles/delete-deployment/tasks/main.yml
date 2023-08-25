@@ -1,14 +1,18 @@
 ---
+- set_fact:
+    hosting_server: "{{ hosting_vcenter if hosting_esxi is not defined else hosting_esxi }}"
+
 - name: Remove the vCenter VM
   community.vmware.vmware_guest:
-    hostname: "{{ hosting_vcenter.ip }}"
-    username: "{{ hosting_vcenter.username }}"
-    password: "{{ hosting_vcenter.password }}"
+    hostname: "{{ hosting_server.ip }}"
+    username: "{{ hosting_server.username }}"
+    password: "{{ hosting_server.password }}"
     validate_certs: false
     name: "{{ environment_tag }}-vcenter"
     state: absent
     force: true
   delegate_to: localhost
+  tags: vcenter
 
 - name: Remove ESXi hosts VMs
   community.vmware.vmware_guest:
@@ -21,6 +25,7 @@
     force: true
   delegate_to: localhost
   loop: "{{ nested_hosts }}"
+  tags: esx
 
 - name: Remove NSX-T Manager VM
   community.vmware.vmware_guest:
@@ -33,6 +38,7 @@
     force: true
   delegate_to: localhost
   when: 'nsxt is defined'
+  tags: nsx-t
 
 - name: Remove Avi Contoller VM
   community.vmware.vmware_guest:
@@ -45,3 +51,4 @@
     force: true
   delegate_to: localhost
   when: 'nsx_alb is defined'
+  tags: nsx-alb

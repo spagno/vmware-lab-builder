@@ -127,6 +127,38 @@
   # until: "'msg' not in edge_node_results"
   loop: "{{ nsxt.edge_nodes }}"
 
+- name: Wait for VMware tools to become available
+  community.vmware.vmware_guest_tools_wait:
+    hostname: "{{ nested_vcenter.ip }}"
+    username: "{{ nested_vcenter.username }}"
+    password: "{{ nested_vcenter.password }}"
+    name: "{{ item.display_name }}"
+    datacenter: "{{ nested_vcenter.datacenter }}"
+    validate_certs: false
+  register: guest_tools_ready
+  until: guest_tools_ready is not failed
+  loop: "{{ nsxt.edge_nodes }}"
+  retries: 180
+  delay: 10
+
+- name: Ryzen fix
+  community.vmware.vmware_vm_shell:
+    hostname: "{{ nested_vcenter.ip }}"
+    username: "{{ nested_vcenter.username }}"
+    password: "{{ nested_vcenter.password }}"
+    datacenter: "{{ nested_vcenter.datacenter }}"
+    validate_certs: false
+    vm_id: "{{ item.item.display_name }}"
+    vm_username: "root"
+    vm_password: "{{ nsxt.manager.password }}"
+    vm_shell: /bin/bash
+    vm_shell_args: |-
+      -c 'if [[ -z "$(grep "MODIFIED" /opt/vmware/nsx-edge/bin/config.py)" && -n "$(grep "Ryzen" /proc/cpuinfo)" ]] ; then sed -i "192,195s/.*/### MODIFIED ###/g" /opt/vmware/nsx-edge/bin/config.py ; fi'
+    vm_shell_cwd: "/root"
+    wait_for_process: True
+  loop: "{{ guest_tools_ready.results }}"
+  when: item is not failed
+
 - name: Result check for deployment of transport node configuration
   ansible.builtin.async_status:
     jid: "{{ item.ansible_job_id }}"

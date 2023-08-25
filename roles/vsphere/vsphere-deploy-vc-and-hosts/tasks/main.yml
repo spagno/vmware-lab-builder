@@ -20,6 +20,7 @@
     # folder: /SG1/vm
     cluster: "{{ nested_clusters[item.nested_cluster].hosting_cluster }}"
     datastore: "{{ nested_clusters[item.nested_cluster].hosting_datastore }}"
+    resource_pool: "{{ nested_clusters[item.nested_cluster].hosting_resource_pool }}"
     disk_provisioning: "{{ disk_mode }}"
     networks:
       "VM Network": "{{ nested_clusters[item.nested_cluster].vmnic_physical_portgroup_assignment[0].name }}"
@@ -250,7 +251,14 @@
         src: embedded_vCSA_on_VC_7.0.json
         dest: "{{ tmp_dir }}/vCSA_on_VC.json"
         mode: '660'
-      when: vc_iso is search("-7.0.") or vc_iso is search("-8.0.")
+      when: (vc_iso is search("-7.0.") or vc_iso is search("-8.0.")) and hosting_esxi is defined
+
+    - name: Create JSON template file for VCSA 7.0
+      ansible.builtin.template:
+        src: embedded_vCSA_on_esxi_7.0.json
+        dest: "{{tmp_dir}}/vCSA_on_ESXi.json"
+        mode: '660'
+      when: (vc_iso is search("-7.0.") or vc_iso is search("-8.0.")) and hosting_esxi is defined
 
     - name: Perform VC CLI Install
       ansible.builtin.command: "bash ./vcsa-deploy install --accept-eula --no-esx-ssl-verify {{ tmp_dir }}/vCSA_on_VC.json"
